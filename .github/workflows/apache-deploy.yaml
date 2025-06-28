@@ -1,0 +1,44 @@
+name: Deploy Apache Web Server
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-apache:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-${{ hashFiles('**/apache-deploy.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Install Apache
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apache2
+
+      - name: Copy site files to Apache web root
+        run: |
+          set -e
+          sudo rm -rf /var/www/html/*
+          sudo cp -r ./public_html/* /var/www/html/
+          sudo chown -R www-data:www-data /var/www/html/
+
+      - name: Restart Apache
+        run: sudo systemctl restart apache2
+
+      - name: Verify deployment
+        run: |
+          curl -I http://localhost | grep "200 OK"
